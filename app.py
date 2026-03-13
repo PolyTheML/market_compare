@@ -9,8 +9,21 @@ import pandas as pd
 import numpy as np
 import fitz  # PyMuPDF
 from pydantic import BaseModel
-# from zhipuai import ZhipuAI  # Import only when needed to avoid initialization issues
-# from openai import OpenAI # Required for type hinting if strictly following original logic, though ZhipuAI wraps it.
+import openai
+
+# ---------------------------------------------------------
+# Configuration
+# ---------------------------------------------------------
+LARGE_LANGUAGE_MODEL = "gpt-4o"
+EMBEDDINGS_MODEL = "text-embedding-3-small"
+CHUNK_SIZE = 2000
+OVERLAP = 300
+TOP_N = 7
+THRESHOLD = 0.5
+
+# ---------------------------------------------------------
+# Configuration
+# ---------------------------------------------------------
 
 # ---------------------------------------------------------
 # Page Configuration
@@ -52,7 +65,7 @@ def create_chunks(text: str, chunk_size=2000, overlap=300) -> list[str]:
     return [text[i : i + chunk_size] for i in range(0, len(text), step)]
 
 def get_embeddings(client, text: str, model: str) -> list[float]:
-    """Generates embeddings using ZhipuAI."""
+    """Generates embeddings using OpenAI."""
     resp = client.embeddings.create(
         model=model,
         input=text,
@@ -125,17 +138,17 @@ def query_structured_output(client, retrieved_chunks, prompt, schema, system_pro
     )
 
     try:
-        # Using ZhipuAI client which follows OpenAI SDK structure for responses.parse
-        response = client.responses.parse(
+        # Using OpenAI client for structured outputs
+        response = client.beta.chat.completions.parse(
             model=llm_model,
-            input=[
+            messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": augmented_query}
             ],
             temperature=0.1,
-            text_format=schema
+            response_format=schema
         )
-        return response.output_parsed
+        return response.choices[0].message.parsed
     except Exception as e:
         return {"error": str(e)}
 
@@ -434,13 +447,13 @@ using Retrieval Augmented Generation (RAG) and Structured Outputs.
 # Sidebar Configuration
 with st.sidebar:
     st.header("Configuration")
-    api_key = st.text_input("Zhipu AI API Key", type="password")
+    api_key = st.text_input("OpenAI API Key", type="password")
     
     st.subheader("Model Selection")
-    # Common Zhipu AI models
-    llm_options = ["glm-4", "glm-4-flash", "glm-3-turbo"]
-    emb_options = ["embedding-2", "embedding-3"]
-    
+    # Common OpenAI models
+    llm_options = ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-3.5-turbo"]
+    emb_options = ["text-embedding-3-small", "text-embedding-3-large", "text-embedding-ada-002"]
+
     selected_llm = st.selectbox("LLM Model", llm_options, index=0)
     selected_emb = st.selectbox("Embedding Model", emb_options, index=0)
     
@@ -459,8 +472,7 @@ if uploaded_files and api_key:
     if st.button("Process Reports", type="primary"):
         try:
             # Initialize Client
-            from zhipuai import ZhipuAI
-            client = ZhipuAI(api_key=api_key)
+            client = openai.OpenAI(api_key=api_key)
             
             # Stage 1: Ingestion & Embedding
             with st.spinner("Reading files and generating embeddings..."):
@@ -537,4 +549,4 @@ else:
     if not uploaded_files:
         st.info("Please upload PDF files to begin.")
     if not api_key:
-        st.info("Please enter your Zhipu AI API Key in the sidebar.")
+        st.info("Please enter your OpenAI API Key in the sidebar.")
