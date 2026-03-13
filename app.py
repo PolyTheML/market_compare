@@ -9,8 +9,8 @@ import pandas as pd
 import numpy as np
 import fitz  # PyMuPDF
 from pydantic import BaseModel
-from zhipuai import ZhipuAI
-from openai import OpenAI # Required for type hinting if strictly following original logic, though ZhipuAI wraps it.
+# from zhipuai import ZhipuAI  # Import only when needed to avoid initialization issues
+# from openai import OpenAI # Required for type hinting if strictly following original logic, though ZhipuAI wraps it.
 
 # ---------------------------------------------------------
 # Page Configuration
@@ -51,7 +51,7 @@ def create_chunks(text: str, chunk_size=2000, overlap=300) -> list[str]:
     if step <= 0: raise ValueError("chunk_size must be > overlap")
     return [text[i : i + chunk_size] for i in range(0, len(text), step)]
 
-def get_embeddings(client: ZhipuAI, text: str, model: str) -> list[float]:
+def get_embeddings(client, text: str, model: str) -> list[float]:
     """Generates embeddings using ZhipuAI."""
     resp = client.embeddings.create(
         model=model,
@@ -459,6 +459,7 @@ if uploaded_files and api_key:
     if st.button("Process Reports", type="primary"):
         try:
             # Initialize Client
+            from zhipuai import ZhipuAI
             client = ZhipuAI(api_key=api_key)
             
             # Stage 1: Ingestion & Embedding
